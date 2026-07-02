@@ -1,5 +1,5 @@
 import { prisma } from "./index";
-import { DocumentType } from "../generated/client";
+import { DocumentType } from "../generated/client/index.js";
 
 const PREFIXES: Record<DocumentType, string> = {
   INVOICE: "FAC",
