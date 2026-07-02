@@ -48,9 +48,15 @@ packages/pdf Plantilla y generación de PDF, compartida por la web y el bot
 ```bash
 npm install
 npm run db:generate
-npm run db:migrate     # crea las tablas (te pedirá un nombre para la migración)
+npm run db:migrate     # crea/actualiza las tablas (te pedirá un nombre si hay cambios de esquema nuevos)
 npm run db:seed        # crea el usuario admin y un perfil de empresa de ejemplo
 ```
+
+> `db:migrate` (`prisma migrate dev`) necesita que el usuario de MySQL pueda
+> crear una base de datos temporal ("shadow database") para comparar el
+> esquema — normal en local con un usuario con privilegios amplios (p. ej.
+> `root`). En producción, con un usuario más restringido, usa `npm run
+> db:deploy` en su lugar (ver sección 7.2).
 
 ## 4. Arrancar en desarrollo
 
@@ -122,7 +128,7 @@ cp .env.example .env
 nano .env                  # rellena DATABASE_URL, SESSION_SECRET, DISCORD_*, etc.
 
 npm run db:generate
-npm run db:migrate         # aplica el esquema a tu MySQL de producción
+npm run db:deploy          # aplica las migraciones ya generadas (no necesita crear shadow database)
 npm run db:seed            # crea el usuario admin y el perfil de empresa
 
 npm run build               # compila la web (Next.js) y el bot (TypeScript)
@@ -153,41 +159,55 @@ pm2 restart facturadiscord-web  # reiniciar solo uno
 pm2 monit                       # panel de CPU/memoria en vivo
 ```
 
-### 7.4 Exponer la web con dominio y HTTPS (opcional pero recomendado)
+### 7.4 Exponer la web con dominio y HTTPS (Apache)
 
-Next.js corre en el puerto 3000; ponle un reverse proxy con Nginx delante:
+Next.js corre en el puerto 3000; Apache actúa de reverse proxy delante con `mod_proxy`.
 
-```nginx
-# /etc/nginx/sites-available/facturadiscord
-server {
-    listen 80;
-    server_name factura.tudominio.com;
+```bash
+sudo a2enmod proxy proxy_http headers rewrite
+sudo systemctl restart apache2
+```
 
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
+VirtualHost `:80` (solo redirige a HTTPS, certbot lo genera/ajusta si usas `--apache`):
+
+```apache
+<VirtualHost *:80>
+    ServerName factura.tudominio.com
+    ServerAlias www.factura.tudominio.com
+
+    ErrorLog ${APACHE_LOG_DIR}/facturadiscord_error.log
+    CustomLog ${APACHE_LOG_DIR}/facturadiscord_access.log combined
+
+    RewriteEngine on
+    RewriteCond %{SERVER_NAME} =factura.tudominio.com [OR]
+    RewriteCond %{SERVER_NAME} =www.factura.tudominio.com
+    RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]
+</VirtualHost>
+```
+
+VirtualHost `:443` (creado por certbot, `factura.tudominio.com-le-ssl.conf`) — añade el proxy dentro, sin tocar las líneas `SSLEngine`/`SSLCertificateFile`/`SSLCertificateKeyFile`:
+
+```apache
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:3000/
+    ProxyPassReverse / http://127.0.0.1:3000/
+    RequestHeader set X-Forwarded-Proto "https"
 ```
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/facturadiscord /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
+sudo apachectl configtest
+sudo systemctl reload apache2
 
 # HTTPS gratis con Let's Encrypt
-sudo apt-get install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d factura.tudominio.com
+sudo apt-get install -y certbot python3-certbot-apache
+sudo certbot --apache -d factura.tudominio.com -d www.factura.tudominio.com
 ```
 
 Y abre el firewall si usas `ufw`:
 
 ```bash
 sudo ufw allow OpenSSH
-sudo ufw allow 'Nginx Full'
+sudo ufw allow 'Apache Full'
 sudo ufw enable
 ```
 
@@ -199,7 +219,7 @@ El bot no necesita ningún puerto abierto: se conecta él mismo a Discord.
 cd /opt/facturadiscord
 git pull                    # o vuelve a subir el código actualizado
 npm ci
-npm run db:migrate          # si hay cambios en el esquema
+npm run db:deploy           # aplica migraciones nuevas si las hay
 npm run build
 npm run deploy:commands     # solo si cambiaste comandos del bot
 pm2 restart all

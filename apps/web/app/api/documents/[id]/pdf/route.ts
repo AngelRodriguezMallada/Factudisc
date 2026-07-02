@@ -25,7 +25,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const pdfData = buildPdfData(document, document.client, company);
   const buffer = await renderDocumentPdf(pdfData);
 
-  return new NextResponse(buffer, {
+  return new NextResponse(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="${document.number}.pdf"`,
