@@ -34,5 +34,14 @@ export const documentSchema = z.object({
   issueDate: z.string().min(1),
   dueDate: z.string().optional().or(z.literal("")),
   notes: z.string().optional().or(z.literal("")),
+  paymentMethodIds: z.array(z.coerce.number().int().positive()).default([]),
   lines: z.array(lineSchema).min(1, "Añade al menos una línea"),
+});
+
+export const PAYMENT_METHOD_TYPES = ["TRANSFER", "PAYPAL", "BIZUM", "CASH", "CARD", "OTHER"] as const;
+
+export const paymentMethodSchema = z.object({
+  type: z.enum(PAYMENT_METHOD_TYPES),
+  label: z.string().optional().or(z.literal("")),
+  details: z.string().min(1, "Los datos del método de pago son obligatorios"),
 });

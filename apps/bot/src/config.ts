@@ -17,5 +17,6 @@ export const config = {
   discordToken: required("DISCORD_TOKEN"),
   clientId: required("DISCORD_CLIENT_ID"),
   guildId: process.env.DISCORD_GUILD_ID || undefined,
-  ownerDiscordId: required("OWNER_DISCORD_ID"),
+  // El super-admin crea cuentas y da acceso. Compatibilidad con OWNER_DISCORD_ID.
+  superAdminDiscordId: process.env.SUPER_ADMIN_DISCORD_ID || required("OWNER_DISCORD_ID"),
 };

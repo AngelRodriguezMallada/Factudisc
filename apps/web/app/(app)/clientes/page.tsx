@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { prisma } from "@facturadiscord/db";
+import { requireAccount } from "@/lib/auth";
 
 export default async function ClientsPage() {
-  const clients = await prisma.client.findMany({ orderBy: { name: "asc" } });
+  const { accountId } = await requireAccount();
+  const clients = await prisma.client.findMany({ where: { accountId }, orderBy: { name: "asc" } });
 
   return (
     <div className="space-y-6">

@@ -2,17 +2,20 @@ import Link from "next/link";
 import { prisma } from "@facturadiscord/db";
 import { StatusBadge, DOCUMENT_STATUSES } from "@/components/StatusBadge";
 import { formatCurrency } from "@/lib/money";
+import { requireAccount } from "@/lib/auth";
 
 interface PageProps {
   searchParams: { type?: string; status?: string };
 }
 
 export default async function DocumentsPage({ searchParams }: PageProps) {
+  const { accountId } = await requireAccount();
   const type = searchParams.type === "QUOTE" ? "QUOTE" : "INVOICE";
   const statusFilter = searchParams.status;
 
   const documents = await prisma.document.findMany({
     where: {
+      accountId,
       type,
       ...(statusFilter ? { status: statusFilter as any } : {}),
     },

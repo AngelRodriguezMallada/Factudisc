@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@facturadiscord/db";
 import { ClientForm } from "@/components/ClientForm";
+import { requireAccount } from "@/lib/auth";
 import { updateClientAction, deleteClientAction } from "../actions";
 
 export default async function EditClientPage({ params }: { params: { id: string } }) {
+  const { accountId } = await requireAccount();
   const id = Number(params.id);
-  const client = await prisma.client.findUnique({ where: { id } });
+  const client = await prisma.client.findFirst({ where: { id, accountId } });
   if (!client) notFound();
 
   const boundUpdate = updateClientAction.bind(null, id);

@@ -21,6 +21,14 @@ export interface PdfLine {
   lineTotal: number;
 }
 
+export type PaymentOptionType = "TRANSFER" | "PAYPAL" | "BIZUM" | "CASH" | "CARD" | "OTHER";
+
+export interface PdfPaymentOption {
+  type: PaymentOptionType;
+  label?: string | null;
+  details: string;
+}
+
 export interface DocumentPdfData {
   type: DocumentKind;
   number: string;
@@ -34,4 +42,5 @@ export interface DocumentPdfData {
   client: PdfPartyInfo;
   company: PdfCompanyInfo;
   lines: PdfLine[];
+  paymentOptions: PdfPaymentOption[];
 }

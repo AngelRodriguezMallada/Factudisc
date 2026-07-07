@@ -3,12 +3,14 @@ import { notFound } from "next/navigation";
 import { prisma } from "@facturadiscord/db";
 import { StatusBadge, DOCUMENT_STATUSES } from "@/components/StatusBadge";
 import { formatCurrency } from "@/lib/money";
+import { requireAccount } from "@/lib/auth";
 import { convertToInvoiceAction, updateStatusAction, deleteDocumentAction } from "../actions";
 
 export default async function DocumentDetailPage({ params }: { params: { id: string } }) {
+  const { accountId } = await requireAccount();
   const id = Number(params.id);
-  const document = await prisma.document.findUnique({
-    where: { id },
+  const document = await prisma.document.findFirst({
+    where: { id, accountId },
     include: { client: true, lines: { orderBy: { position: "asc" } }, convertedTo: true },
   });
 

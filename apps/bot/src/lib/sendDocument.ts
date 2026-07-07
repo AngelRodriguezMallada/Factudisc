@@ -11,18 +11,19 @@ const KIND_LABEL: Record<DocumentType, string> = {
   QUOTE: "presupuesto",
 };
 
-// Discord permite un máximo de 25 sugerencias de autocompletado, y cada etiqueta
-// no puede superar los 100 caracteres.
+// Discord permite un máximo de 25 sugerencias de autocompletado.
 const AUTOCOMPLETE_LIMIT = 25;
 
 export async function handleDocumentAutocomplete(
   interaction: AutocompleteInteraction,
+  accountId: number,
   type: DocumentType
 ) {
   const focused = interaction.options.getFocused().trim();
 
   const documents = await prisma.document.findMany({
     where: {
+      accountId,
       type,
       ...(focused ? { number: { contains: focused } } : {}),
     },
@@ -39,16 +40,35 @@ export async function handleDocumentAutocomplete(
   );
 }
 
-export async function handleDocumentCommand(interaction: ChatInputCommandInteraction, type: DocumentType) {
+/** Busca un documento de la cuenta y publica su PDF (en canal o por DM). */
+export async function handleDocumentCommand(
+  interaction: ChatInputCommandInteraction,
+  accountId: number,
+  type: DocumentType
+) {
   const numero = interaction.options.getString("numero", true).trim();
   const targetUser = interaction.options.getUser("usuario");
 
-  // Si se envía por DM, la confirmación es privada para no llenar el canal.
   await interaction.deferReply({ ephemeral: Boolean(targetUser) });
 
+  await publishDocumentPdf(interaction, accountId, type, numero, targetUser);
+}
+
+/** Renderiza y publica el PDF de un documento (reutilizado por /factura, /presupuesto y /convertir). */
+export async function publishDocumentPdf(
+  interaction: ChatInputCommandInteraction,
+  accountId: number,
+  type: DocumentType,
+  numero: string,
+  targetUser: { id: string; username: string; send: (options: any) => Promise<unknown> } | null
+) {
   const document = await prisma.document.findFirst({
-    where: { number: numero, type },
-    include: { client: true, lines: { orderBy: { position: "asc" } } },
+    where: { accountId, number: numero, type },
+    include: {
+      client: true,
+      lines: { orderBy: { position: "asc" } },
+      paymentOptions: { orderBy: { position: "asc" } },
+    },
   });
 
   if (!document) {
@@ -56,7 +76,7 @@ export async function handleDocumentCommand(interaction: ChatInputCommandInterac
     return;
   }
 
-  const company = await prisma.companyProfile.findFirst();
+  const company = await prisma.companyProfile.findUnique({ where: { accountId } });
   if (!company) {
     await interaction.editReply("El perfil de la empresa no está configurado todavía en la web.");
     return;

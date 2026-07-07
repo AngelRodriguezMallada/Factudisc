@@ -1,14 +1,21 @@
-# Facturadiscord
+# factuRM
 
-Web para emitir facturas y presupuestos profesionales, más un bot de Discord que
-publica esos PDFs bajo demanda mediante comandos, restringido a una lista de
-usuarios permitidos.
+Plataforma **multi-cuenta** para emitir facturas y presupuestos profesionales, más
+un bot de Discord que publica esos PDFs bajo demanda. Cada **owner** gestiona su
+propia cuenta (empresa, clientes, documentos, métodos de pago) desde la web o desde
+su servidor de Discord. Un **super-admin** crea las cuentas y da acceso.
+
+- **Super-admin**: crea cuentas y asigna owners/acceso; no ve el contenido ajeno.
+- **Owner**: control total de su cuenta; enlaza sus servidores y gestiona miembros.
+- **Miembro**: puede emitir/consultar documentos de la cuenta.
+
+El login web es con **Discord (OAuth)**, así la identidad coincide con la del bot.
 
 ## Estructura
 
 ```
-apps/web     Next.js — panel de facturación (login, clientes, empresa, facturas, presupuestos)
-apps/bot     Bot de Discord (discord.js) — comandos /factura, /presupuesto, /permitir, /revocar, /permitidos
+apps/web     Next.js — panel de facturación (login Discord, clientes, empresa, documentos, admin)
+apps/bot     Bot de Discord (discord.js) — /factura, /presupuesto, /convertir, /vincular, /permitir, /crear-cuenta…
 packages/db  Esquema Prisma (MySQL) compartido por la web y el bot
 packages/pdf Plantilla y generación de PDF, compartida por la web y el bot
 ```
@@ -27,15 +34,18 @@ packages/pdf Plantilla y generación de PDF, compartida por la web y el bot
    ```
 2. Copia `.env.example` a `.env` en la raíz del proyecto y rellena los valores:
    - `DATABASE_URL`: cadena de conexión a tu MySQL.
-   - `SESSION_SECRET`: cadena aleatoria larga (`openssl rand -hex 32`).
-   - `ADMIN_USERNAME` / `ADMIN_PASSWORD`: credenciales del usuario web que creará el script de seed.
-   - `DISCORD_TOKEN` / `DISCORD_CLIENT_ID`: del Developer Portal, pestaña "Bot" y "General Information".
-   - `DISCORD_GUILD_ID` (opcional): ID de tu servidor de pruebas, para que los comandos se registren al instante en vez de esperar hasta 1h (activa el "Modo desarrollador" en Discord y haz clic derecho sobre el servidor > Copiar ID).
-   - `OWNER_DISCORD_ID`: tu ID de usuario de Discord. Es el único que podrá usar `/permitir`, `/revocar` y `/permitidos`.
+   - `SESSION_SECRET`: cadena aleatoria larga, mínimo 32 caracteres (`openssl rand -hex 32`).
+   - `DISCORD_CLIENT_ID` / `DISCORD_CLIENT_SECRET`: del Developer Portal (pestaña "OAuth2").
+   - `DISCORD_OAUTH_REDIRECT_URI`: URL de retorno del login, p. ej. `https://tu-dominio.com/api/auth/discord/callback` (en local `http://localhost:3000/api/auth/discord/callback`). **Debe estar dada de alta** en OAuth2 > Redirects.
+   - `DISCORD_TOKEN`: token del bot (pestaña "Bot").
+   - `DISCORD_GUILD_ID` (opcional): ID de tu servidor de pruebas, para que los comandos se registren al instante en vez de esperar hasta 1h.
+   - `SUPER_ADMIN_DISCORD_ID`: tu ID de usuario de Discord. Es el único que puede crear cuentas y dar acceso (`/crear-cuenta`, `/listar-cuentas` y el panel `/admin`).
 
    Nunca compartas el contenido de `.env`.
 
-3. Invita el bot a tu servidor con estos permisos (OAuth2 > URL Generator, scopes `bot` y `applications.commands`):
+3. En el Developer Portal, pestaña **OAuth2 > Redirects**, añade la misma URL de `DISCORD_OAUTH_REDIRECT_URI`.
+
+4. Invita el bot a tu servidor con estos permisos (OAuth2 > URL Generator, scopes `bot` y `applications.commands`):
    - Send Messages
    - Attach Files
    - Use Slash Commands
@@ -49,7 +59,7 @@ packages/pdf Plantilla y generación de PDF, compartida por la web y el bot
 npm install
 npm run db:generate
 npm run db:migrate     # crea/actualiza las tablas (te pedirá un nombre si hay cambios de esquema nuevos)
-npm run db:seed        # crea el usuario admin y un perfil de empresa de ejemplo
+npm run db:seed        # crea la cuenta principal, te asigna como super-admin (owner) y un perfil de empresa de ejemplo
 ```
 
 > `db:migrate` (`prisma migrate dev`) necesita que el usuario de MySQL pueda
@@ -76,26 +86,41 @@ npm run deploy:commands
 
 ## 5. Primeros pasos
 
-1. Entra en `http://localhost:3000/login` con el usuario/contraseña del `.env`.
-2. Ve a **Empresa** y rellena tus datos fiscales, IBAN y logo — aparecerán en los PDF.
-3. Crea al menos un **Cliente**.
-4. Crea una **Factura** o **Presupuesto**: añade líneas, revisa el total calculado
-   automáticamente y guarda. Podrás previsualizar y descargar el PDF desde su
-   página de detalle.
-5. Un presupuesto se puede **convertir a factura** con un clic, generando un
-   nuevo número de factura y copiando las líneas.
+1. Entra en `http://localhost:3000/login` y pulsa **Entrar con Discord**. Como
+   super-admin (definido en `SUPER_ADMIN_DISCORD_ID`) verás tu cuenta principal y
+   el panel **Admin**.
+2. Desde **Admin** (o con `/crear-cuenta` en el bot) crea cuentas para otros owners
+   indicando su ID de Discord. Cada owner entrará con su propio Discord y verá solo
+   lo suyo.
+3. Como owner, ve a **Empresa**: rellena tus datos fiscales, IBAN y logo, y añade
+   tus **métodos de pago** (transferencia, PayPal, Bizum…).
+4. Crea al menos un **Cliente**.
+5. Crea una **Factura** o **Presupuesto**: añade líneas (precios con hasta 4
+   decimales), elige qué métodos de pago mostrar y guarda. Previsualiza/descarga
+   el PDF desde su detalle.
+6. Un presupuesto se puede **convertir a factura** con un clic (o con `/convertir`
+   en el bot), copiando líneas y métodos de pago.
 
 ## 6. Uso del bot en Discord
 
-- `/factura numero:FAC-2026-0001` — publica el PDF en el canal donde escribes.
-- `/factura numero:FAC-2026-0001 usuario:@alguien` — se lo envía por DM (debe compartir servidor con el bot).
+Facturación (cualquier miembro de la cuenta del servidor):
+- `/factura numero:FAC-2026-0001 [usuario]` — publica el PDF en el canal (o por DM si indicas `usuario`).
 - `/presupuesto numero:PRE-2026-0001 [usuario]` — igual, para presupuestos.
-- `/permitir usuario:@alguien` — (solo tú, el dueño) añade a alguien a la lista de permitidos.
-- `/revocar usuario:@alguien` — (solo tú) le quita el permiso.
-- `/permitidos` — (solo tú) lista quién tiene acceso.
+- `/convertir numero:PRE-2026-0001 [usuario]` — convierte el presupuesto en factura y publica el PDF.
 
-Cualquier otro usuario que no esté en la lista de permitidos (ni sea el dueño)
-recibirá un aviso de que no tiene permiso al intentar usar `/factura` o `/presupuesto`.
+Los campos `numero` tienen **autocompletado** con los documentos de la cuenta.
+
+Gestión de la cuenta (owner):
+- `/vincular` — vincula el servidor actual a tu cuenta (necesario antes de usar los comandos de facturación aquí).
+- `/desvincular` — desvincula el servidor.
+- `/permitir usuario:@alguien` — da acceso a un miembro; `/revocar usuario:@alguien` se lo quita.
+- `/miembros` — lista quién tiene acceso a la cuenta.
+
+Plataforma (super-admin):
+- `/crear-cuenta nombre:… owner:@alguien` — crea una cuenta y asigna su owner.
+- `/listar-cuentas` — lista las cuentas de la plataforma.
+
+Un servidor solo funciona tras `/vincular`; quien no sea miembro de la cuenta recibe un aviso.
 
 ## 7. Ejecutar 24/7 en un servidor Ubuntu (producción)
 
@@ -129,7 +154,7 @@ nano .env                  # rellena DATABASE_URL, SESSION_SECRET, DISCORD_*, et
 
 npm run db:generate
 npm run db:deploy          # aplica las migraciones ya generadas (no necesita crear shadow database)
-npm run db:seed            # crea el usuario admin y el perfil de empresa
+npm run db:seed            # crea la cuenta principal, el super-admin y el perfil de empresa
 
 npm run build               # compila la web (Next.js) y el bot (TypeScript)
 npm run deploy:commands     # registra los slash commands en Discord

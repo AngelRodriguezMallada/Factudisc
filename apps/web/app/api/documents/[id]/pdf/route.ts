@@ -1,22 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@facturadiscord/db";
 import { renderDocumentPdf, buildPdfData } from "@facturadiscord/pdf";
-import { getSession } from "@/lib/session";
+import { requireAccount } from "@/lib/auth";
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getSession();
-  if (!session.userId) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+  const { accountId } = await requireAccount();
 
   const id = Number(params.id);
-  const [document, company] = await Promise.all([
-    prisma.document.findUnique({
-      where: { id },
-      include: { client: true, lines: { orderBy: { position: "asc" } } },
-    }),
-    prisma.companyProfile.findFirst(),
-  ]);
+  const document = await prisma.document.findFirst({
+    where: { id, accountId },
+    include: {
+      client: true,
+      lines: { orderBy: { position: "asc" } },
+      paymentOptions: { orderBy: { position: "asc" } },
+    },
+  });
+  const company = await prisma.companyProfile.findUnique({ where: { accountId } });
 
   if (!document || !company) {
     return NextResponse.json({ error: "No encontrado" }, { status: 404 });

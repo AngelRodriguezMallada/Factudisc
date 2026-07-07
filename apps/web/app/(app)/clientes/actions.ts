@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@facturadiscord/db";
 import { clientSchema } from "@/lib/validation";
-import { requireSession } from "@/lib/auth";
+import { requireAccount } from "@/lib/auth";
 
 function parseClientForm(formData: FormData) {
   return clientSchema.parse({
@@ -17,10 +17,10 @@ function parseClientForm(formData: FormData) {
 }
 
 export async function createClientAction(_prevState: { error?: string } | undefined, formData: FormData) {
-  await requireSession();
+  const { accountId } = await requireAccount();
   try {
     const data = parseClientForm(formData);
-    await prisma.client.create({ data: normalize(data) });
+    await prisma.client.create({ data: { accountId, ...normalize(data) } });
   } catch (err) {
     return { error: err instanceof Error ? err.message : "No se pudo crear el cliente" };
   }
@@ -33,10 +33,17 @@ export async function updateClientAction(
   _prevState: { error?: string } | undefined,
   formData: FormData
 ) {
-  await requireSession();
+  const { accountId } = await requireAccount();
   try {
     const data = parseClientForm(formData);
-    await prisma.client.update({ where: { id }, data: normalize(data) });
+    // updateMany permite filtrar por accountId (evita editar clientes de otra cuenta).
+    const result = await prisma.client.updateMany({
+      where: { id, accountId },
+      data: normalize(data),
+    });
+    if (result.count === 0) {
+      return { error: "Cliente no encontrado." };
+    }
   } catch (err) {
     return { error: err instanceof Error ? err.message : "No se pudo actualizar el cliente" };
   }
@@ -45,7 +52,12 @@ export async function updateClientAction(
 }
 
 export async function deleteClientAction(id: number) {
-  await requireSession();
+  const { accountId } = await requireAccount();
+
+  const client = await prisma.client.findFirst({ where: { id, accountId } });
+  if (!client) {
+    throw new Error("Cliente no encontrado.");
+  }
 
   const documentCount = await prisma.document.count({ where: { clientId: id } });
   if (documentCount > 0) {

@@ -10,6 +10,22 @@ interface ClientOption {
   name: string;
 }
 
+interface PaymentMethodOption {
+  id: number;
+  type: string;
+  label?: string | null;
+  details: string;
+}
+
+const PAYMENT_LABEL: Record<string, string> = {
+  TRANSFER: "Transferencia",
+  PAYPAL: "PayPal",
+  BIZUM: "Bizum",
+  CASH: "Efectivo",
+  CARD: "Tarjeta",
+  OTHER: "Otro",
+};
+
 interface DocumentFormInitialValues {
   id?: number;
   clientId?: number;
@@ -17,6 +33,7 @@ interface DocumentFormInitialValues {
   issueDate?: string;
   dueDate?: string;
   notes?: string;
+  paymentMethodIds?: number[];
   lines?: LineInput[];
 }
 
@@ -24,6 +41,7 @@ interface DocumentFormProps {
   documentType: "INVOICE" | "QUOTE";
   clients: ClientOption[];
   defaultTaxRate: number;
+  paymentMethods: PaymentMethodOption[];
   initialValues?: DocumentFormInitialValues;
 }
 
@@ -35,7 +53,7 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function DocumentForm({ documentType, clients, defaultTaxRate, initialValues }: DocumentFormProps) {
+export function DocumentForm({ documentType, clients, defaultTaxRate, paymentMethods, initialValues }: DocumentFormProps) {
   const router = useRouter();
   const isEdit = Boolean(initialValues?.id);
 
@@ -47,10 +65,17 @@ export function DocumentForm({ documentType, clients, defaultTaxRate, initialVal
   const [lines, setLines] = useState<LineInput[]>(
     initialValues?.lines && initialValues.lines.length > 0 ? initialValues.lines : [emptyLine(defaultTaxRate)]
   );
+  const [paymentMethodIds, setPaymentMethodIds] = useState<number[]>(initialValues?.paymentMethodIds ?? []);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const totals = useMemo(() => computeTotals(lines), [lines]);
+
+  function togglePaymentMethod(id: number) {
+    setPaymentMethodIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
 
   function updateLine(index: number, patch: Partial<LineInput>) {
     setLines((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)));
@@ -80,6 +105,7 @@ export function DocumentForm({ documentType, clients, defaultTaxRate, initialVal
       issueDate,
       dueDate: dueDate || undefined,
       notes: notes || undefined,
+      paymentMethodIds,
       lines,
     };
 
@@ -226,6 +252,38 @@ export function DocumentForm({ documentType, clients, defaultTaxRate, initialVal
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="card p-6 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-medium text-ink">Formas de pago</h2>
+          <a href="/empresa" className="text-xs text-accent hover:underline">Gestionar métodos</a>
+        </div>
+        {paymentMethods.length === 0 ? (
+          <p className="text-sm text-slate-500">
+            No has configurado métodos de pago. Añádelos en{" "}
+            <a href="/empresa" className="text-accent hover:underline">Empresa</a> para poder mostrarlos en el documento.
+          </p>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {paymentMethods.map((method) => (
+              <label key={method.id} className="flex items-start gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={paymentMethodIds.includes(method.id)}
+                  onChange={() => togglePaymentMethod(method.id)}
+                />
+                <span>
+                  <span className="font-medium text-ink">
+                    {method.label || PAYMENT_LABEL[method.type] || method.type}
+                  </span>
+                  <span className="block text-slate-500">{method.details}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
       </div>
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
