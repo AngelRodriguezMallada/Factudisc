@@ -14,6 +14,12 @@ interface PrismaLineLike {
   lineTotal: Numeric;
 }
 
+interface PrismaPaymentOptionLike {
+  type: "TRANSFER" | "PAYPAL" | "BIZUM" | "CASH" | "CARD" | "OTHER";
+  label?: string | null;
+  details: string;
+}
+
 interface PrismaPartyLike {
   name: string;
   taxId?: string | null;
@@ -38,6 +44,7 @@ interface PrismaDocumentLike {
   taxAmount: Numeric;
   total: Numeric;
   lines: PrismaLineLike[];
+  paymentOptions?: PrismaPaymentOptionLike[];
 }
 
 export function buildPdfData(
@@ -77,6 +84,11 @@ export function buildPdfData(
       unitPrice: num(l.unitPrice),
       taxRate: num(l.taxRate),
       lineTotal: num(l.lineTotal),
+    })),
+    paymentOptions: (document.paymentOptions ?? []).map((p) => ({
+      type: p.type,
+      label: p.label,
+      details: p.details,
     })),
   };
 }

@@ -10,8 +10,7 @@ interface DocumentCommandConfig {
   type: DocumentType;
 }
 
-// Factura y presupuesto solo se diferencian en los textos y el tipo, así que
-// compartimos la construcción del comando para no duplicar lógica.
+// Factura y presupuesto solo se diferencian en los textos y el tipo.
 export function createDocumentCommand(cfg: DocumentCommandConfig): Command {
   return {
     data: new SlashCommandBuilder()
@@ -29,8 +28,8 @@ export function createDocumentCommand(cfg: DocumentCommandConfig): Command {
           .setName("usuario")
           .setDescription("Enviar por DM a este usuario en vez de publicarlo en el canal")
       ),
-    requiresAllowlist: true,
-    execute: (interaction) => handleDocumentCommand(interaction, cfg.type),
-    autocomplete: (interaction) => handleDocumentAutocomplete(interaction, cfg.type),
+    scope: "account",
+    execute: (interaction, accountId) => handleDocumentCommand(interaction, accountId, cfg.type),
+    autocomplete: (interaction, accountId) => handleDocumentAutocomplete(interaction, accountId, cfg.type),
   };
 }

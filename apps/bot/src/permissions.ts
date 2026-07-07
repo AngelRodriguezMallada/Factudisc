@@ -1,12 +1,19 @@
-import { prisma } from "@facturadiscord/db";
+import {
+  getAccountIdForGuild,
+  getMembershipForDiscordUser,
+  getMembershipsForDiscordUser,
+  type MembershipInfo,
+} from "@facturadiscord/db";
 import { config } from "./config";
 
-export function isOwner(userId: string): boolean {
-  return userId === config.ownerDiscordId;
+export function isSuperAdmin(userId: string): boolean {
+  return userId === config.superAdminDiscordId;
 }
 
-export async function isAllowed(userId: string): Promise<boolean> {
-  if (isOwner(userId)) return true;
-  const entry = await prisma.allowedDiscordUser.findUnique({ where: { discordId: userId } });
-  return Boolean(entry);
+export { getAccountIdForGuild, getMembershipForDiscordUser };
+
+/** Cuentas de las que el usuario es OWNER. */
+export async function getOwnedAccounts(discordId: string): Promise<MembershipInfo[]> {
+  const memberships = await getMembershipsForDiscordUser(discordId);
+  return memberships.filter((m) => m.role === "OWNER");
 }

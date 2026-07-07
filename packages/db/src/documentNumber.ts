@@ -6,12 +6,15 @@ const PREFIXES: Record<DocumentType, string> = {
   QUOTE: "PRE",
 };
 
-export async function generateNextDocumentNumber(type: DocumentType): Promise<string> {
+export async function generateNextDocumentNumber(
+  accountId: number,
+  type: DocumentType
+): Promise<string> {
   const year = new Date().getFullYear();
 
   const counter = await prisma.$transaction(async (tx) => {
     const existing = await tx.documentCounter.findUnique({
-      where: { type_year: { type, year } },
+      where: { accountId_type_year: { accountId, type, year } },
     });
 
     if (existing) {
@@ -22,7 +25,7 @@ export async function generateNextDocumentNumber(type: DocumentType): Promise<st
     }
 
     return tx.documentCounter.create({
-      data: { type, year, lastNumber: 1 },
+      data: { accountId, type, year, lastNumber: 1 },
     });
   });
 

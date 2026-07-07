@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma, generateNextDocumentNumber } from "@facturadiscord/db";
 import { documentSchema } from "@/lib/validation";
 import { computeTotals } from "@/lib/money";
-import { getSession } from "@/lib/session";
+import { requireAccount } from "@/lib/auth";
+import { buildPaymentOptionCreates } from "@/lib/paymentOptions";
 
 export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session.userId) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  }
+  const { accountId } = await requireAccount();
 
   const body = await req.json();
   const parsed = documentSchema.safeParse(body);
@@ -16,11 +14,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message || "Datos no válidos" }, { status: 400 });
   }
   const data = parsed.data;
+
+  // El cliente debe pertenecer a la cuenta.
+  const client = await prisma.client.findFirst({ where: { id: data.clientId, accountId } });
+  if (!client) {
+    return NextResponse.json({ error: "Cliente no válido" }, { status: 400 });
+  }
+
   const totals = computeTotals(data.lines);
-  const number = await generateNextDocumentNumber(data.type);
+  const number = await generateNextDocumentNumber(accountId, data.type);
+  const paymentOptions = await buildPaymentOptionCreates(accountId, data.paymentMethodIds);
 
   const document = await prisma.document.create({
     data: {
+      accountId,
       type: data.type,
       number,
       status: data.status,
@@ -41,6 +48,7 @@ export async function POST(req: NextRequest) {
           position: idx,
         })),
       },
+      paymentOptions: { create: paymentOptions },
     },
   });
 

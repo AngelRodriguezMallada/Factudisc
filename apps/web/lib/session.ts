@@ -4,6 +4,9 @@ import { getIronSession, type SessionOptions } from "iron-session";
 export interface SessionData {
   userId?: number;
   username?: string;
+  discordId?: string;
+  /** Cuenta activa del usuario en esta sesión. */
+  accountId?: number;
 }
 
 const DEV_FALLBACK_SECRET = "dev-only-insecure-secret-change-me-32chars";

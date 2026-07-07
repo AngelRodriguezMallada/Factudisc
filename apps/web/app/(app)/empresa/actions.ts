@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@facturadiscord/db";
-import { companySchema } from "@/lib/validation";
-import { requireSession } from "@/lib/auth";
+import { companySchema, paymentMethodSchema } from "@/lib/validation";
+import { requireAccountOwner } from "@/lib/auth";
 
 export async function updateCompanyAction(_prevState: { error?: string; ok?: boolean } | undefined, formData: FormData) {
-  await requireSession();
+  const { accountId } = await requireAccountOwner();
   try {
     const data = companySchema.parse({
       name: formData.get("name"),
@@ -20,7 +20,6 @@ export async function updateCompanyAction(_prevState: { error?: string; ok?: boo
       notes: formData.get("notes"),
     });
 
-    const existing = await prisma.companyProfile.findFirst();
     const payload = {
       name: data.name,
       taxId: data.taxId || null,
@@ -33,15 +32,51 @@ export async function updateCompanyAction(_prevState: { error?: string; ok?: boo
       notes: data.notes || null,
     };
 
-    if (existing) {
-      await prisma.companyProfile.update({ where: { id: existing.id }, data: payload });
-    } else {
-      await prisma.companyProfile.create({ data: payload });
-    }
+    await prisma.companyProfile.upsert({
+      where: { accountId },
+      update: payload,
+      create: { accountId, ...payload },
+    });
   } catch (err) {
     return { error: err instanceof Error ? err.message : "No se pudo guardar" };
   }
 
   revalidatePath("/empresa");
   return { ok: true };
+}
+
+export async function createPaymentMethodAction(
+  _prevState: { error?: string } | undefined,
+  formData: FormData
+) {
+  const { accountId } = await requireAccountOwner();
+  try {
+    const data = paymentMethodSchema.parse({
+      type: formData.get("type"),
+      label: formData.get("label"),
+      details: formData.get("details"),
+    });
+
+    const count = await prisma.paymentMethod.count({ where: { accountId } });
+    await prisma.paymentMethod.create({
+      data: {
+        accountId,
+        type: data.type,
+        label: data.label || null,
+        details: data.details,
+        position: count,
+      },
+    });
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "No se pudo añadir el método" };
+  }
+
+  revalidatePath("/empresa");
+  return {};
+}
+
+export async function deletePaymentMethodAction(id: number) {
+  const { accountId } = await requireAccountOwner();
+  await prisma.paymentMethod.deleteMany({ where: { id, accountId } });
+  revalidatePath("/empresa");
 }

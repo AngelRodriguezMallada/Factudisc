@@ -1,17 +1,21 @@
 import Link from "next/link";
 import { prisma } from "@facturadiscord/db";
 import { formatCurrency } from "@/lib/money";
+import { requireAccount } from "@/lib/auth";
 
 export default async function DashboardPage() {
+  const { accountId } = await requireAccount();
+
   const [invoiceCount, quoteCount, clientCount, unpaidInvoices, recentDocuments] = await Promise.all([
-    prisma.document.count({ where: { type: "INVOICE" } }),
-    prisma.document.count({ where: { type: "QUOTE" } }),
-    prisma.client.count(),
+    prisma.document.count({ where: { accountId, type: "INVOICE" } }),
+    prisma.document.count({ where: { accountId, type: "QUOTE" } }),
+    prisma.client.count({ where: { accountId } }),
     prisma.document.findMany({
-      where: { type: "INVOICE", status: { in: ["SENT", "DRAFT"] } },
+      where: { accountId, type: "INVOICE", status: { in: ["SENT", "DRAFT"] } },
       select: { total: true },
     }),
     prisma.document.findMany({
+      where: { accountId },
       orderBy: { createdAt: "desc" },
       take: 6,
       include: { client: true },

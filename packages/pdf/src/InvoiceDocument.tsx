@@ -228,6 +228,15 @@ const TITLE: Record<string, string> = {
   QUOTE: "PRESUPUESTO",
 };
 
+const PAYMENT_LABEL: Record<string, string> = {
+  TRANSFER: "Transferencia",
+  PAYPAL: "PayPal",
+  BIZUM: "Bizum",
+  CASH: "Efectivo",
+  CARD: "Tarjeta",
+  OTHER: "Otro",
+};
+
 export function InvoiceDocument({ data }: { data: DocumentPdfData }) {
   const { company, client, lines } = data;
 
@@ -317,6 +326,17 @@ export function InvoiceDocument({ data }: { data: DocumentPdfData }) {
             </View>
           </View>
         </View>
+
+        {data.paymentOptions.length > 0 ? (
+          <View style={styles.notesBlock}>
+            <Text style={styles.notesTitle}>Formas de pago</Text>
+            {data.paymentOptions.map((option, idx) => (
+              <Text key={idx} style={styles.muted}>
+                {option.label || PAYMENT_LABEL[option.type] || option.type}: {option.details}
+              </Text>
+            ))}
+          </View>
+        ) : null}
 
         {data.notes ? (
           <View style={styles.notesBlock}>

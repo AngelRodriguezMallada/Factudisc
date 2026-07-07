@@ -1,24 +1,53 @@
 import "dotenv/config";
-import bcrypt from "bcryptjs";
 import { prisma } from "./index";
 
 async function main() {
-  const username = process.env.ADMIN_USERNAME || "admin";
-  const password = process.env.ADMIN_PASSWORD || "change-me";
+  const superAdminDiscordId =
+    process.env.SUPER_ADMIN_DISCORD_ID || process.env.OWNER_DISCORD_ID;
 
-  const existingUser = await prisma.user.findUnique({ where: { username } });
-  if (!existingUser) {
-    const passwordHash = await bcrypt.hash(password, 10);
-    await prisma.user.create({ data: { username, passwordHash } });
-    console.log(`Usuario admin creado: ${username}`);
-  } else {
-    console.log(`El usuario ${username} ya existe, no se ha modificado.`);
+  if (!superAdminDiscordId) {
+    console.error(
+      "Falta SUPER_ADMIN_DISCORD_ID (o OWNER_DISCORD_ID) en el .env. " +
+        "Es el ID de Discord del super-admin que crea las cuentas."
+    );
+    process.exit(1);
   }
 
-  const existingCompany = await prisma.companyProfile.findFirst();
+  // Reutiliza la cuenta principal creada por la migración (la de menor id que
+  // aún no tiene miembros); si no hay ninguna, crea una.
+  let account = await prisma.account.findFirst({
+    where: { members: { none: {} } },
+    orderBy: { id: "asc" },
+  });
+  if (!account) {
+    account = await prisma.account.create({ data: { name: "Cuenta principal" } });
+    console.log(`Cuenta principal creada (id ${account.id}).`);
+  } else {
+    console.log(`Usando la cuenta principal existente (id ${account.id}).`);
+  }
+
+  // Super-admin como OWNER de la cuenta principal.
+  const user = await prisma.user.upsert({
+    where: { discordId: superAdminDiscordId },
+    update: {},
+    create: { discordId: superAdminDiscordId, username: "super-admin" },
+  });
+
+  await prisma.accountMember.upsert({
+    where: { accountId_userId: { accountId: account.id, userId: user.id } },
+    update: { role: "OWNER" },
+    create: { accountId: account.id, userId: user.id, role: "OWNER" },
+  });
+  console.log(`Super-admin ${superAdminDiscordId} asignado como OWNER de la cuenta ${account.id}.`);
+
+  // Perfil de empresa de ejemplo si la cuenta aún no tiene.
+  const existingCompany = await prisma.companyProfile.findUnique({
+    where: { accountId: account.id },
+  });
   if (!existingCompany) {
     await prisma.companyProfile.create({
       data: {
+        accountId: account.id,
         name: "Mi Empresa S.L.",
         taxId: "B00000000",
         address: "Calle Ejemplo 1, 28000 Madrid",
@@ -30,7 +59,7 @@ async function main() {
     });
     console.log("Perfil de empresa de ejemplo creado. Edítalo en /empresa.");
   } else {
-    console.log("Ya existe un perfil de empresa, no se ha modificado.");
+    console.log("Ya existe un perfil de empresa para la cuenta, no se ha modificado.");
   }
 }
 
