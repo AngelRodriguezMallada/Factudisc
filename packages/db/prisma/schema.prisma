@@ -89,8 +89,8 @@ model DocumentLine {
   documentId  Int
   document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   description String
-  quantity    Decimal  @db.Decimal(10, 2)
-  unitPrice   Decimal  @db.Decimal(12, 2)
+  quantity    Decimal  @db.Decimal(12, 4)
+  unitPrice   Decimal  @db.Decimal(14, 4)
   taxRate     Decimal  @db.Decimal(5, 2)
   lineTotal   Decimal  @db.Decimal(12, 2)
   position    Int      @default(0)

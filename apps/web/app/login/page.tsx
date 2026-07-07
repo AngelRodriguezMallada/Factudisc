@@ -18,7 +18,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm card p-8">
-        <h1 className="text-xl font-semibold text-ink mb-1">Facturadiscord</h1>
+        <h1 className="text-xl font-semibold text-ink mb-1">factuRM</h1>
         <p className="text-sm text-slate-500 mb-6">Accede a tu panel de facturación</p>
         <form action={formAction} className="space-y-4">
           <div>

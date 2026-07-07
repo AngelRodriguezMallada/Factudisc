@@ -23,7 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-8">
             <Link href="/" className="text-lg font-semibold text-ink">
-              Facturadiscord
+              factuRM
             </Link>
             <nav className="flex gap-5 text-sm text-slate-600">
               {NAV_LINKS.map((link) => (

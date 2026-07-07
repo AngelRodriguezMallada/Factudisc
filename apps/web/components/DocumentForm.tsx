@@ -171,7 +171,7 @@ export function DocumentForm({ documentType, clients, defaultTaxRate, initialVal
                 className="input col-span-2"
                 type="number"
                 min={0}
-                step="0.01"
+                step="0.0001"
                 placeholder="Cant."
                 value={line.quantity}
                 onChange={(e) => updateLine(idx, { quantity: Number(e.target.value) })}
@@ -181,7 +181,7 @@ export function DocumentForm({ documentType, clients, defaultTaxRate, initialVal
                 className="input col-span-2"
                 type="number"
                 min={0}
-                step="0.01"
+                step="0.0001"
                 placeholder="Precio"
                 value={line.unitPrice}
                 onChange={(e) => updateLine(idx, { unitPrice: Number(e.target.value) })}

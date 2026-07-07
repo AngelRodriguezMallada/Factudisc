@@ -200,6 +200,14 @@ function formatCurrency(value: number): string {
   return `${value.toFixed(2)} €`;
 }
 
+// El precio unitario admite hasta 4 decimales; se recortan los ceros sobrantes
+// para no mostrar "12,3400 €" cuando basta con "12,34 €".
+function formatUnitPrice(value: number): string {
+  const trimmed = Number(value.toFixed(4));
+  const decimals = Math.min(4, Math.max(2, (trimmed.toString().split(".")[1] || "").length));
+  return `${trimmed.toFixed(decimals)} €`;
+}
+
 function formatDate(date?: Date | null): string {
   if (!date) return "-";
   const d = new Date(date);
@@ -286,7 +294,7 @@ export function InvoiceDocument({ data }: { data: DocumentPdfData }) {
             >
               <Text style={styles.colDesc}>{line.description}</Text>
               <Text style={styles.colQty}>{line.quantity}</Text>
-              <Text style={styles.colPrice}>{formatCurrency(line.unitPrice)}</Text>
+              <Text style={styles.colPrice}>{formatUnitPrice(line.unitPrice)}</Text>
               <Text style={styles.colTax}>{line.taxRate}%</Text>
               <Text style={styles.colTotal}>{formatCurrency(line.lineTotal)}</Text>
             </View>
