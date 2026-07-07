@@ -13,6 +13,8 @@ export const permitidosCommand: Command = {
 
     const lines = [`• <@${config.ownerDiscordId}> (dueño)`];
     for (const entry of entries) {
+      // El dueño ya aparece arriba; evitamos listarlo dos veces si además está en la BD.
+      if (entry.discordId === config.ownerDiscordId) continue;
       lines.push(`• <@${entry.discordId}>${entry.label ? ` (${entry.label})` : ""}`);
     }
 
