@@ -1,4 +1,5 @@
 import "dotenv/config";
+import bcrypt from "bcryptjs";
 import { prisma } from "./index";
 
 async function main() {
@@ -12,6 +13,9 @@ async function main() {
     );
     process.exit(1);
   }
+
+  const superAdminUsername = process.env.SUPER_ADMIN_USERNAME;
+  const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD;
 
   // Reutiliza la cuenta principal creada por la migración (la de menor id que
   // aún no tiene miembros); si no hay ninguna, crea una.
@@ -32,6 +36,18 @@ async function main() {
     update: {},
     create: { discordId: superAdminDiscordId, username: "super-admin" },
   });
+
+  // Credenciales de acceso web opcionales para el super-admin (login sin Discord).
+  if (superAdminUsername && superAdminPassword) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        loginUsername: superAdminUsername,
+        passwordHash: await bcrypt.hash(superAdminPassword, 10),
+      },
+    });
+    console.log(`Credenciales de acceso web asignadas al super-admin (usuario: ${superAdminUsername}).`);
+  }
 
   await prisma.accountMember.upsert({
     where: { accountId_userId: { accountId: account.id, userId: user.id } },

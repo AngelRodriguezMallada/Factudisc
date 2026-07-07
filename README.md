@@ -9,7 +9,9 @@ su servidor de Discord. Un **super-admin** crea las cuentas y da acceso.
 - **Owner**: control total de su cuenta; enlaza sus servidores y gestiona miembros.
 - **Miembro**: puede emitir/consultar documentos de la cuenta.
 
-El login web es con **Discord (OAuth)**, así la identidad coincide con la del bot.
+El login web es con **Discord (OAuth)** o con **usuario y contraseña** (las asigna
+el super-admin al crear la cuenta, o cada usuario en su página de Empresa). Con
+Discord la identidad coincide con la del bot.
 
 ## Estructura
 
@@ -86,12 +88,14 @@ npm run deploy:commands
 
 ## 5. Primeros pasos
 
-1. Entra en `http://localhost:3000/login` y pulsa **Entrar con Discord**. Como
-   super-admin (definido en `SUPER_ADMIN_DISCORD_ID`) verás tu cuenta principal y
-   el panel **Admin**.
+1. Entra en `http://localhost:3000/login` con **Discord** o con **usuario y
+   contraseña** (si definiste `SUPER_ADMIN_USERNAME`/`SUPER_ADMIN_PASSWORD` en el
+   `.env`, el seed te las asigna). Como super-admin verás tu cuenta principal y el
+   panel **Admin**.
 2. Desde **Admin** (o con `/crear-cuenta` en el bot) crea cuentas para otros owners
-   indicando su ID de Discord. Cada owner entrará con su propio Discord y verá solo
-   lo suyo.
+   indicando su ID de Discord y, opcionalmente, un usuario/contraseña. Cada owner
+   entrará con Discord o con esas credenciales y verá solo lo suyo. También puede
+   cambiar sus credenciales en **Empresa**.
 3. Como owner, ve a **Empresa**: rellena tus datos fiscales, IBAN y logo, y añade
    tus **métodos de pago** (transferencia, PayPal, Bizum…).
 4. Crea al menos un **Cliente**.
