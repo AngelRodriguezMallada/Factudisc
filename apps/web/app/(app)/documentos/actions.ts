@@ -3,8 +3,10 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma, generateNextDocumentNumber } from "@facturadiscord/db";
+import { requireSession } from "@/lib/auth";
 
 export async function convertToInvoiceAction(quoteId: number) {
+  await requireSession();
   const quote = await prisma.document.findUnique({ where: { id: quoteId }, include: { lines: true } });
   if (!quote || quote.type !== "QUOTE") {
     throw new Error("Presupuesto no encontrado");
@@ -40,15 +42,23 @@ export async function convertToInvoiceAction(quoteId: number) {
   redirect(`/documentos/${invoice.id}`);
 }
 
+const VALID_STATUSES = ["DRAFT", "SENT", "ACCEPTED", "REJECTED", "PAID", "EXPIRED"] as const;
+type DocumentStatus = (typeof VALID_STATUSES)[number];
+
 export async function updateStatusAction(formData: FormData) {
+  await requireSession();
   const id = Number(formData.get("id"));
   const status = String(formData.get("status"));
-  await prisma.document.update({ where: { id }, data: { status: status as any } });
+  if (!Number.isInteger(id) || !VALID_STATUSES.includes(status as DocumentStatus)) {
+    throw new Error("Datos no válidos");
+  }
+  await prisma.document.update({ where: { id }, data: { status: status as DocumentStatus } });
   revalidatePath(`/documentos/${id}`);
   revalidatePath("/documentos");
 }
 
 export async function deleteDocumentAction(id: number) {
+  await requireSession();
   await prisma.document.delete({ where: { id } });
   revalidatePath("/documentos");
   redirect("/documentos");

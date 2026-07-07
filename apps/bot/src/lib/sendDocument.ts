@@ -1,4 +1,8 @@
-import { AttachmentBuilder, type ChatInputCommandInteraction } from "discord.js";
+import {
+  AttachmentBuilder,
+  type AutocompleteInteraction,
+  type ChatInputCommandInteraction,
+} from "discord.js";
 import { prisma, type DocumentType } from "@facturadiscord/db";
 import { renderDocumentPdf, buildPdfData } from "@facturadiscord/pdf";
 
@@ -7,11 +11,40 @@ const KIND_LABEL: Record<DocumentType, string> = {
   QUOTE: "presupuesto",
 };
 
+// Discord permite un máximo de 25 sugerencias de autocompletado, y cada etiqueta
+// no puede superar los 100 caracteres.
+const AUTOCOMPLETE_LIMIT = 25;
+
+export async function handleDocumentAutocomplete(
+  interaction: AutocompleteInteraction,
+  type: DocumentType
+) {
+  const focused = interaction.options.getFocused().trim();
+
+  const documents = await prisma.document.findMany({
+    where: {
+      type,
+      ...(focused ? { number: { contains: focused } } : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    take: AUTOCOMPLETE_LIMIT,
+    include: { client: true },
+  });
+
+  await interaction.respond(
+    documents.map((doc) => ({
+      name: `${doc.number} · ${doc.client.name}`.slice(0, 100),
+      value: doc.number,
+    }))
+  );
+}
+
 export async function handleDocumentCommand(interaction: ChatInputCommandInteraction, type: DocumentType) {
   const numero = interaction.options.getString("numero", true).trim();
   const targetUser = interaction.options.getUser("usuario");
 
-  await interaction.deferReply();
+  // Si se envía por DM, la confirmación es privada para no llenar el canal.
+  await interaction.deferReply({ ephemeral: Boolean(targetUser) });
 
   const document = await prisma.document.findFirst({
     where: { number: numero, type },

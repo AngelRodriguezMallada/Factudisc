@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@facturadiscord/db";
 import { companySchema } from "@/lib/validation";
+import { requireSession } from "@/lib/auth";
 
 export async function updateCompanyAction(_prevState: { error?: string; ok?: boolean } | undefined, formData: FormData) {
+  await requireSession();
   try {
     const data = companySchema.parse({
       name: formData.get("name"),

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@facturadiscord/db";
 import { clientSchema } from "@/lib/validation";
+import { requireSession } from "@/lib/auth";
 
 function parseClientForm(formData: FormData) {
   return clientSchema.parse({
@@ -16,6 +17,7 @@ function parseClientForm(formData: FormData) {
 }
 
 export async function createClientAction(_prevState: { error?: string } | undefined, formData: FormData) {
+  await requireSession();
   try {
     const data = parseClientForm(formData);
     await prisma.client.create({ data: normalize(data) });
@@ -31,6 +33,7 @@ export async function updateClientAction(
   _prevState: { error?: string } | undefined,
   formData: FormData
 ) {
+  await requireSession();
   try {
     const data = parseClientForm(formData);
     await prisma.client.update({ where: { id }, data: normalize(data) });
@@ -42,6 +45,15 @@ export async function updateClientAction(
 }
 
 export async function deleteClientAction(id: number) {
+  await requireSession();
+
+  const documentCount = await prisma.document.count({ where: { clientId: id } });
+  if (documentCount > 0) {
+    throw new Error(
+      `No se puede borrar el cliente porque tiene ${documentCount} documento(s) asociado(s).`
+    );
+  }
+
   await prisma.client.delete({ where: { id } });
   revalidatePath("/clientes");
   redirect("/clientes");
