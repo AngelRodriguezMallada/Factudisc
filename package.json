@@ -7,10 +7,11 @@
     "packages/*"
   ],
   "scripts": {
+    "postinstall": "npm run db:generate",
     "dev:web": "npm run dev -w apps/web",
     "dev:bot": "npm run dev -w apps/bot",
-    "build:web": "npm run build -w apps/web",
-    "build:bot": "npm run build -w apps/bot",
+    "build:web": "npm run db:generate && npm run build -w apps/web",
+    "build:bot": "npm run db:generate && npm run build -w apps/bot",
     "build": "npm run build:web && npm run build:bot",
     "deploy:commands": "npm run deploy:commands -w apps/bot",
     "db:generate": "prisma generate --schema packages/db/prisma/schema.prisma",

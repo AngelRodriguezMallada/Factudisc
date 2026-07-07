@@ -28,11 +28,14 @@ model Account {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  discordId String   @unique
-  username  String
-  avatar    String?
-  createdAt DateTime @default(now())
+  id            Int      @id @default(autoincrement())
+  discordId     String   @unique
+  username      String
+  avatar        String?
+  // Credenciales opcionales para entrar sin Discord (usuario/contraseña).
+  loginUsername String?  @unique
+  passwordHash  String?
+  createdAt     DateTime @default(now())
 
   memberships AccountMember[]
 }

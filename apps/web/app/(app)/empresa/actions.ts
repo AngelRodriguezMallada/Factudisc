@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@facturadiscord/db";
 import { companySchema, paymentMethodSchema } from "@/lib/validation";
-import { requireAccountOwner } from "@/lib/auth";
+import { requireAccount, requireAccountOwner } from "@/lib/auth";
+import { hashPassword, validateCredentials } from "@/lib/password";
 
 export async function updateCompanyAction(_prevState: { error?: string; ok?: boolean } | undefined, formData: FormData) {
   const { accountId } = await requireAccountOwner();
@@ -79,4 +80,31 @@ export async function deletePaymentMethodAction(id: number) {
   const { accountId } = await requireAccountOwner();
   await prisma.paymentMethod.deleteMany({ where: { id, accountId } });
   revalidatePath("/empresa");
+}
+
+/** Cada usuario puede fijar/cambiar SUS propias credenciales de acceso web. */
+export async function setMyCredentialsAction(
+  _prevState: { error?: string; ok?: boolean } | undefined,
+  formData: FormData
+) {
+  const { userId } = await requireAccount();
+
+  const username = String(formData.get("username") || "").trim();
+  const password = String(formData.get("password") || "");
+
+  const validationError = validateCredentials(username, password);
+  if (validationError) return { error: validationError };
+
+  const clash = await prisma.user.findUnique({ where: { loginUsername: username } });
+  if (clash && clash.id !== userId) {
+    return { error: "Ese nombre de usuario ya está en uso." };
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { loginUsername: username, passwordHash: await hashPassword(password) },
+  });
+
+  revalidatePath("/empresa");
+  return { ok: true };
 }

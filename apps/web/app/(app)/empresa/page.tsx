@@ -1,14 +1,16 @@
 import { prisma } from "@facturadiscord/db";
 import { CompanyForm } from "./CompanyForm";
 import { PaymentMethodsManager } from "./PaymentMethodsManager";
+import { CredentialsForm } from "./CredentialsForm";
 import { requireAccount } from "@/lib/auth";
 
 export default async function CompanyPage() {
-  const { accountId, role } = await requireAccount();
+  const { accountId, role, userId } = await requireAccount();
 
-  const [company, paymentMethods] = await Promise.all([
+  const [company, paymentMethods, me] = await Promise.all([
     prisma.companyProfile.findUnique({ where: { accountId } }),
     prisma.paymentMethod.findMany({ where: { accountId }, orderBy: { position: "asc" } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { loginUsername: true } }),
   ]);
 
   const isOwner = role === "OWNER";
@@ -50,6 +52,13 @@ export default async function CompanyPage() {
               details: m.details,
             }))}
           />
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-lg font-semibold text-ink mb-3">Acceso web (usuario y contraseña)</h2>
+        <div className="card p-6">
+          <CredentialsForm currentUsername={me?.loginUsername ?? null} />
         </div>
       </div>
     </div>

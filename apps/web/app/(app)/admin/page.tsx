@@ -1,6 +1,6 @@
 import { prisma } from "@facturadiscord/db";
 import { requireSuperAdmin } from "@/lib/auth";
-import { CreateAccountForm, GrantAccessForm } from "./AdminForms";
+import { CreateAccountForm, GrantAccessForm, SetCredentialsForm } from "./AdminForms";
 import { revokeAccessAction, deleteAccountAction } from "./actions";
 
 export default async function AdminPage() {
@@ -50,14 +50,22 @@ export default async function AdminPage() {
               <p className="text-xs font-medium text-slate-500 mb-1">Miembros</p>
               <ul className="divide-y divide-slate-100 border border-slate-200 rounded-lg">
                 {account.members.map((member) => (
-                  <li key={member.id} className="flex items-center justify-between px-4 py-2 text-sm">
-                    <span>
-                      <span className="font-medium text-ink">{member.user.username}</span>
-                      <span className="text-slate-500"> · {member.user.discordId} · {member.role}</span>
-                    </span>
-                    <form action={revokeAccessAction.bind(null, member.id)}>
-                      <button type="submit" className="text-red-500 hover:text-red-700 text-sm">Quitar</button>
-                    </form>
+                  <li key={member.id} className="px-4 py-3 text-sm space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span>
+                        <span className="font-medium text-ink">{member.user.username}</span>
+                        <span className="text-slate-500"> · {member.user.discordId} · {member.role}</span>
+                        {member.user.loginUsername ? (
+                          <span className="text-slate-500"> · usuario web: <code>{member.user.loginUsername}</code></span>
+                        ) : (
+                          <span className="text-amber-600"> · sin usuario web</span>
+                        )}
+                      </span>
+                      <form action={revokeAccessAction.bind(null, member.id)}>
+                        <button type="submit" className="text-red-500 hover:text-red-700 text-sm">Quitar</button>
+                      </form>
+                    </div>
+                    <SetCredentialsForm userId={member.user.id} hasCredentials={Boolean(member.user.loginUsername)} />
                   </li>
                 ))}
               </ul>

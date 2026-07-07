@@ -1,3 +1,5 @@
+import { PasswordLoginForm } from "./PasswordLoginForm";
+
 interface LoginPageProps {
   searchParams: { error?: string };
 }
@@ -26,6 +28,14 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
           </svg>
           Entrar con Discord
         </a>
+
+        <div className="flex items-center gap-3 my-5">
+          <span className="h-px flex-1 bg-slate-200" />
+          <span className="text-xs text-slate-400">o con usuario y contraseña</span>
+          <span className="h-px flex-1 bg-slate-200" />
+        </div>
+
+        <PasswordLoginForm />
 
         {error ? <p className="text-sm text-red-600 mt-4">{error}</p> : null}
       </div>
